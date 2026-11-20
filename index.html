@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>手臂旋轉肌袖復健監控平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @keyframes dangerBlink {
+      0%, 100% { background-color: #dc2626; }
+      50% { background-color: #991b1b; }
+    }
+    .blink-danger { animation: dangerBlink 0.6s infinite; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+
+  <!-- ==================== 1. 登入與註冊畫面 ==================== -->
+  <div id="viewAuth" class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+      <div class="bg-slate-900 text-white p-6 text-center">
+        <h1 class="text-xl font-bold tracking-wide">手臂旋轉肌袖復健監控平台</h1>
+      </div>
+
+      <div class="grid grid-cols-2 border-b text-sm font-semibold">
+        <button id="tabPatient" onclick="switchAuthRole('patient')" class="py-3 text-blue-600 border-b-2 border-blue-600 bg-blue-50/50">
+          患者登入 / 註冊
+        </button>
+        <button id="tabDoctor" onclick="switchAuthRole('doctor')" class="py-3 text-slate-500 hover:text-slate-700">
+          醫師 / 治療師登入
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 id="authTitle" class="text-lg font-bold">患者登入</h2>
+          <button onclick="toggleRegisterMode()" id="toggleRegBtn" class="text-xs text-blue-600 hover:underline">
+            還沒有帳號？點此註冊
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">帳號</label>
+          <input id="authUser" type="text" placeholder="請輸入帳號" autocomplete="off" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">密碼</label>
+          <div class="relative">
+            <input id="authPass" type="password" placeholder="請輸入密碼" autocomplete="off" class="w-full border rounded-lg pl-3 pr-10 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button type="button"
+              onmousedown="showPassword('authPass')" onmouseup="hidePassword('authPass')" onmouseleave="hidePassword('authPass')"
+              ontouchstart="showPassword('authPass')" ontouchend="hidePassword('authPass')"
+              title="長按顯示密碼"
+              class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-700 select-none">👁️</button>
+          </div>
+        </div>
+
+        <p id="authError" class="text-xs text-rose-600 font-semibold hidden"></p>
+
+        <button onclick="handleAuthSubmit()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition shadow">
+          <span id="authSubmitText">登入系統</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 2. 系統主容器 ==================== -->
+  <div id="appShell" class="hidden min-h-screen flex flex-col">
+    <header class="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow">
+      <div class="flex items-center gap-3">
+        <button onclick="goHome()" class="font-bold text-lg hover:text-blue-300 transition">旋轉肌袖外骨骼監控平台</button>
+        <span id="headerRoleBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-blue-600 font-medium">患者端</span>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <span id="headerUserName" class="text-slate-300"></span>
+        <button onclick="goHome()" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-xs">回主選單</button>
+        <button onclick="logout()" class="bg-rose-600 hover:bg-rose-700 px-3 py-1 rounded text-xs">登出</button>
+      </div>
+    </header>
+
+    <main class="p-6 max-w-7xl w-full mx-auto flex-1">
+
+      <!-- [頁面 A] 醫師主選單 -->
+      <section id="viewDoctorMenu" class="hidden py-10">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">醫師功能主選單</h2>
+        <p class="text-slate-500 text-sm text-center mb-8">請選擇您要執行的管理或監控項目</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <button onclick="openPatientSelect()" class="bg-white hover:border-blue-500 border-2 border-transparent rounded-2xl p-8 shadow-md hover:shadow-lg transition text-left group">
+            <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition">📋</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">患者歷史資料</h3>
+            <p class="text-sm text-slate-500">瀏覽所有已註冊患者名單，點選動態重播或刪除每次復健的歷史紀錄。</p>
+          </button>
+
+          <button onclick="openLiveMonitor()" class="bg-white hover:border-emerald-500 border-2 border-transparent rounded-2xl p-8 shadow-md hover:shadow-lg transition text-left group">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition">📈</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">復健實時監控</h3>
+            <p class="text-sm text-slate-500">接收外骨骼 TCP 即時數據，顯示 4 顆馬達角度、角速度、扭矩折線圖與三段式警示燈。</p>
+          </button>
+
+          <button onclick="openAccountManager()" class="bg-white hover:border-purple-500 border-2 border-transparent rounded-2xl p-8 shadow-md hover:shadow-lg transition text-left group">
+            <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition">👥</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">帳號資料管理</h3>
+            <p class="text-sm text-slate-500">管理所有患者與醫師帳號，支援修改密碼、刪除帳號及新增帳號。</p>
+          </button>
+        </div>
+      </section>
+
+      <!-- [頁面 B] 患者主選單 -->
+      <section id="viewPatientMenu" class="hidden py-10">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2 text-center">患者復健主選單</h2>
+        <p class="text-slate-500 text-sm text-center mb-8">請選擇查看過往復健紀錄或開始即時復健偵測</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <button onclick="openHistoryForPatient(currentUser.username)" class="bg-white hover:border-blue-500 border-2 border-transparent rounded-2xl p-8 shadow-md hover:shadow-lg transition text-left group">
+            <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition">📋</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">歷史資料</h3>
+            <p class="text-sm text-slate-500">查看您每一次復健的動作紀錄、反抗偵測次數，並動態播放 4 顆馬達完整過程。</p>
+          </button>
+
+          <button onclick="openLiveMonitor()" class="bg-white hover:border-emerald-500 border-2 border-transparent rounded-2xl p-8 shadow-md hover:shadow-lg transition text-left group">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition">🦾</div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">復健偵測</h3>
+            <p class="text-sm text-slate-500">進入即時復健偵測模式，檢視三段式放鬆警示燈與 4 顆馬達即時數據折線圖。</p>
+          </button>
+        </div>
+      </section>
+
+      <!-- [頁面 C] 醫師：選擇患者名單 -->
+      <section id="viewPatientSelect" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">患者歷史資料 — 請選擇患者</h2>
+            <p class="text-sm text-slate-500">點擊下方任一位已註冊患者的按鈕以檢視詳細紀錄</p>
+          </div>
+          <button onclick="goHome()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-semibold">← 返回主選單</button>
+        </div>
+        <div id="patientButtonGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+      </section>
+
+      <!-- [頁面 D] 歷史資料檢視 -->
+      <section id="viewHistory" class="hidden space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 id="historyPageTitle" class="text-xl font-bold text-slate-800">歷史復健紀錄</h2>
+            <p class="text-sm text-slate-500">點擊「查看完整過程」後，按下「開始播放」即可動態重播 4 顆馬達數據</p>
+          </div>
+          <button id="historyBackBtn" onclick="goHome()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-semibold">← 返回</button>
+        </div>
+        <div id="historyListContainer" class="space-y-4"></div>
+      </section>
+
+      <!-- [頁面 E] 復健實時監控 -->
+      <section id="viewLiveMonitor" class="hidden space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <h2 class="text-xl font-bold text-slate-800">復健實時監控 (4 顆馬達全參數)</h2>
+            <span id="tcpConnBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-200 text-slate-600 font-semibold">
+              ● 外骨骼 TCP：未連線
+            </span>
+            <div id="liveDoctorPatientPicker" class="hidden flex items-center gap-2">
+              <span class="text-xs font-semibold text-slate-500">紀錄對象：</span>
+              <select id="liveTargetPatient" class="border rounded-lg px-2.5 py-1 text-sm bg-white font-medium"></select>
+            </div>
+          </div>
+          <button onclick="exitLiveMonitor()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-semibold">← 結束並返回</button>
+        </div>
+
+        <div id="statusBanner" class="bg-emerald-600 text-white rounded-xl p-4 shadow-md flex flex-wrap justify-between items-center transition-colors">
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 bg-black/25 px-3 py-2 rounded-full">
+              <span id="lampGreen"  class="w-4 h-4 rounded-full bg-emerald-400 ring-2 ring-white"></span>
+              <span id="lampYellow" class="w-4 h-4 rounded-full bg-amber-300/30"></span>
+              <span id="lampRed"    class="w-4 h-4 rounded-full bg-red-400/30"></span>
+            </div>
+            <div>
+              <div id="statusTitle" class="font-bold text-lg">● 狀態正常：肌肉放鬆 (被動帶動中)</div>
+              <div id="statusSub" class="text-xs opacity-90">淨抵抗扭矩 < 1.5 Nm，與 Unity 3D 模型同步判定中</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs opacity-80">目前最大扭矩 / 本次反抗次數</div>
+            <div class="text-2xl font-mono font-bold">
+              <span id="maxTorqueDisplay">0.00 Nm</span>
+              <span class="text-sm font-normal opacity-90 ml-2">反抗：<span id="liveResistCount">0</span> 次</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border p-4 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-bold text-slate-700">資料來源：</label>
+              <select id="dataSourceSelect" onchange="onDataSourceChange()" class="border rounded-lg px-3 py-2 text-sm bg-blue-50 text-blue-800 font-bold">
+                <option value="tcp">真實外骨骼數據 (TCP Port 5001)</option>
+                <option value="sim">內部模擬數據 (無硬體測試用)</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-sm font-bold text-slate-700">復健動作：</label>
+              <select id="liveModeSelect" class="border rounded-lg px-3 py-2 text-sm bg-slate-50 font-medium"></select>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnStartSim" onclick="toggleSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg shadow transition text-sm">
+              ▶ 開始監控並錄製
+            </button>
+            <button id="btnFakeResist" onclick="triggerFakeResist()" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 font-semibold px-3 py-2 rounded-lg text-sm">
+              ⚡ 模擬患者反抗
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="liveMotorCards"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="font-bold text-sm text-slate-700 mb-2">1. 四顆馬達即時角度 (°)</h3>
+            <div class="h-56"><canvas id="chartLiveAngle"></canvas></div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="font-bold text-sm text-slate-700 mb-2">2. 四顆馬達即時角速度 (°/s)</h3>
+            <div class="h-56"><canvas id="chartLiveVel"></canvas></div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm border p-4">
+            <h3 class="font-bold text-sm text-slate-700 mb-2">3. 四顆馬達即時扭矩 (Nm)</h3>
+            <div class="h-56"><canvas id="chartLiveTorque"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- [頁面 F] 醫師：帳號資料管理 -->
+      <section id="viewAccountManager" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800">帳號資料管理</h2>
+            <p class="text-sm text-slate-500">管理所有患者與醫師帳號，可修改密碼、刪除或於名單底部新增帳號</p>
+          </div>
+          <button onclick="goHome()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-semibold">← 返回主選單</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border p-5 flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-lg text-blue-700 mb-3 flex items-center justify-between">
+                <span>患者帳號名單</span>
+                <span id="patientCountBadge" class="text-xs bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full">0 位</span>
+              </h3>
+              <div id="adminPatientList" class="divide-y text-sm mb-4"></div>
+            </div>
+
+            <div class="pt-3 border-t">
+              <button onclick="toggleAdminAddForm('patient')" class="w-full py-2 border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 rounded-lg font-semibold text-sm transition">
+                ＋ 新增患者帳號 ▼
+              </button>
+              <div id="addPatientForm" class="hidden mt-3 p-4 bg-blue-50/60 rounded-xl border border-blue-200 space-y-3 text-sm">
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">帳號</label>
+                  <input id="newPatUser" type="text" placeholder="請輸入患者帳號" class="w-full border rounded px-2.5 py-1.5 bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">密碼</label>
+                  <div class="relative">
+                    <input id="newPatPass" type="password" placeholder="請輸入密碼" class="w-full border rounded pl-2.5 pr-9 py-1.5 bg-white" />
+                    <button type="button"
+                      onmousedown="showPassword('newPatPass')" onmouseup="hidePassword('newPatPass')" onmouseleave="hidePassword('newPatPass')"
+                      ontouchstart="showPassword('newPatPass')" ontouchend="hidePassword('newPatPass')"
+                      class="absolute inset-y-0 right-0 px-2.5 flex items-center text-slate-400 hover:text-slate-700 select-none">👁️</button>
+                  </div>
+                </div>
+                <button onclick="adminAddAccount('patient')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg">確認新增患者</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border p-5 flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-lg text-purple-700 mb-3 flex items-center justify-between">
+                <span>醫師 / 治療師帳號名單</span>
+                <span id="doctorCountBadge" class="text-xs bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full">0 位</span>
+              </h3>
+              <div id="adminDoctorList" class="divide-y text-sm mb-4"></div>
+            </div>
+
+            <div class="pt-3 border-t">
+              <button onclick="toggleAdminAddForm('doctor')" class="w-full py-2 border-2 border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold text-sm transition">
+                ＋ 新增醫師帳號 ▼
+              </button>
+              <div id="addDoctorForm" class="hidden mt-3 p-4 bg-purple-50/60 rounded-xl border border-purple-200 space-y-3 text-sm">
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">帳號</label>
+                  <input id="newDocUser" type="text" placeholder="請輸入醫師帳號" class="w-full border rounded px-2.5 py-1.5 bg-white" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-600 mb-1">密碼</label>
+                  <div class="relative">
+                    <input id="newDocPass" type="password" placeholder="請輸入密碼" class="w-full border rounded pl-2.5 pr-9 py-1.5 bg-white" />
+                    <button type="button"
+                      onmousedown="showPassword('newDocPass')" onmouseup="hidePassword('newDocPass')" onmouseleave="hidePassword('newDocPass')"
+                      ontouchstart="showPassword('newDocPass')" ontouchend="hidePassword('newDocPass')"
+                      class="absolute inset-y-0 right-0 px-2.5 flex items-center text-slate-400 hover:text-slate-700 select-none">👁️</button>
+                  </div>
+                </div>
+                <button onclick="adminAddAccount('doctor')" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg">確認新增醫師</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==================== 3. JavaScript 核心邏輯 ==================== -->
+  <script>
+    const REHAB_MODES = [
+      { id: 1, name: '動作 1：側面爬牆運動' },
+      { id: 2, name: '動作 2：夾臂內外旋 (120°)' },
+      { id: 3, name: '動作 3：外展內外旋 (±90°)' },
+      { id: 4, name: '動作 4：鐘擺運動' },
+      { id: 5, name: '動作 5：肩關節屈曲伸展' },
+      { id: 6, name: '動作 6：肩關節外展內收' },
+      { id: 7, name: '動作 7：外展屈肘 90° 屈曲' },
+      { id: 8, name: '動作 8：肘關節屈曲伸展' }
+    ];
+    const MOTOR_NAMES = ['M1 外展/內收', 'M2 屈曲/伸展', 'M3 上臂內外旋', 'M4 肘關節屈伸'];
+    const MOTOR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#dc2626'];
+
+    function showPassword(id) { const el = document.getElementById(id); if (el) el.type = 'text'; }
+    function hidePassword(id) { const el = document.getElementById(id); if (el) el.type = 'password'; }
+
+    // ---------- 登入與註冊 ----------
+    let authRole = 'patient', isRegisterMode = false, currentUser = null;
+
+    function switchAuthRole(role) {
+      authRole = role;
+      document.getElementById('tabPatient').className = role === 'patient' ? 'py-3 text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'py-3 text-slate-500 hover:text-slate-700';
+      document.getElementById('tabDoctor').className  = role === 'doctor'  ? 'py-3 text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'py-3 text-slate-500 hover:text-slate-700';
+      document.getElementById('authUser').value = '';
+      document.getElementById('authPass').value = '';
+      updateAuthUI();
+    }
+
+    function toggleRegisterMode() {
+      isRegisterMode = !isRegisterMode;
+      document.getElementById('toggleRegBtn').innerText = isRegisterMode ? '已有帳號？返回登入' : '還沒有帳號？點此註冊';
+      updateAuthUI();
+    }
+
+    function updateAuthUI() {
+      const rName = authRole === 'patient' ? '患者' : '醫師 / 治療師';
+      document.getElementById('authTitle').innerText = `${rName}${isRegisterMode ? '註冊' : '登入'}`;
+      document.getElementById('authSubmitText').innerText = isRegisterMode ? '完成註冊並登入' : '登入系統';
+      document.getElementById('authError').classList.add('hidden');
+    }
+
+    function showAuthError(msg) {
+      const el = document.getElementById('authError');
+      el.innerText = msg;
+      el.classList.remove('hidden');
+    }
+
+    async function handleAuthSubmit() {
+      const u = document.getElementById('authUser').value.trim();
+      const p = document.getElementById('authPass').value.trim();
+      if (!u || !p) return showAuthError('請輸入帳號與密碼');
+
+      const url = isRegisterMode ? '/api/register' : '/api/login';
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: authRole, username: u, password: p })
+        });
+        const data = await res.json();
+        if (!data.ok) return showAuthError(data.msg);
+        loginSuccess(authRole, u);
+      } catch (err) {
+        showAuthError('無法連線到伺服器，請確認 server.py 是否已啟動');
+      }
+    }
+
+    function loginSuccess(role, username) {
+      currentUser = { role, username };
+      document.getElementById('viewAuth').classList.add('hidden');
+      document.getElementById('appShell').classList.remove('hidden');
+      const isDoc = role === 'doctor';
+      const badge = document.getElementById('headerRoleBadge');
+      badge.innerText = isDoc ? '醫師端' : '患者端';
+      badge.className = `text-xs px-2.5 py-0.5 rounded-full font-medium ${isDoc ? 'bg-purple-600' : 'bg-blue-600'}`;
+      document.getElementById('headerUserName').innerText = `${isDoc ? '醫師' : '患者'}：${username}`;
+      goHome();
+    }
+
+    function logout() {
+      stopSimulation(false);
+      stopAllHistoryPlaybacks();
+      currentUser = null;
+      document.getElementById('authUser').value = '';
+      document.getElementById('authPass').value = '';
+      document.getElementById('authError').classList.add('hidden');
+      document.getElementById('appShell').classList.add('hidden');
+      document.getElementById('viewAuth').classList.remove('hidden');
+    }
+
+    // ---------- 頁面切換 ----------
+    const ALL_VIEWS = ['viewDoctorMenu', 'viewPatientMenu', 'viewPatientSelect', 'viewHistory', 'viewLiveMonitor', 'viewAccountManager'];
+    function showView(id) {
+      stopAllHistoryPlaybacks();
+      ALL_VIEWS.forEach(v => document.getElementById(v).classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function goHome() {
+      stopSimulation(false);
+      if (currentUser.role === 'doctor') showView('viewDoctorMenu');
+      else showView('viewPatientMenu');
+    }
+
+    // ---------- 醫師：選擇患者名單 ----------
+    async function openPatientSelect() {
+      const res = await fetch('/api/accounts');
+      const data = await res.json();
+      const grid = document.getElementById('patientButtonGrid');
+      grid.innerHTML = data.patients.length === 0
+        ? `<div class="col-span-full text-slate-400 text-center py-8 bg-white rounded-xl border">目前尚無已註冊的患者</div>`
+        : data.patients.map(p => `
+            <button onclick="openHistoryForPatient('${p.username}')" class="bg-white hover:border-blue-500 border-2 border-slate-200 rounded-xl p-5 shadow-sm hover:shadow transition text-left">
+              <div class="flex justify-between items-center">
+                <span class="text-lg font-bold text-slate-800">${p.username}</span>
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">${p.count} 筆紀錄</span>
+              </div>
+            </button>
+          `).join('');
+      showView('viewPatientSelect');
+    }
+
+    // ---------- 歷史資料 (動態播放 + 醫師端刪除) ----------
+    let loadedHistories = [], historyPlaybacks = {}, currentHistoryPatient = '';
+
+    function stopAllHistoryPlaybacks() {
+      Object.keys(historyPlaybacks).forEach(recId => {
+        const pb = historyPlaybacks[recId];
+        if (pb && pb.timer) { clearInterval(pb.timer); pb.timer = null; }
+        const btn = document.getElementById(`btn_play_${recId}`);
+        if (btn) {
+          btn.innerText = '▶ 開始播放';
+          btn.className = 'px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition';
+        }
+      });
+    }
+
+    async function openHistoryForPatient(patientUsername) {
+      currentHistoryPatient = patientUsername;
+      const isDoctor = currentUser && currentUser.role === 'doctor';
+
+      document.getElementById('historyPageTitle').innerText = `${patientUsername} — 歷史復健紀錄`;
+      const backBtn = document.getElementById('historyBackBtn');
+      backBtn.innerText = isDoctor ? '← 返回患者名單' : '← 返回主選單';
+      backBtn.onclick = isDoctor ? openPatientSelect : goHome;
+
+      stopAllHistoryPlaybacks();
+      Object.values(historyPlaybacks).forEach(pb => pb.charts.forEach(c => c.destroy()));
+      historyPlaybacks = {};
+
+      const res = await fetch(`/api/histories/${encodeURIComponent(patientUsername)}`);
+      loadedHistories = await res.json();
+      const container = document.getElementById('historyListContainer');
+
+      if (loadedHistories.length === 0) {
+        container.innerHTML = `<div class="bg-white rounded-xl border p-8 text-center text-slate-400">目前尚無任何復健歷史資料</div>`;
+      } else {
+        container.innerHTML = loadedHistories.map(rec => {
+          const isDanger = rec.resistCount > 0 || rec.maxTorque >= 3.5;
+          return `
+            <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <div class="p-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-800">${rec.modeName}</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${isDanger ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                      ${isDanger ? '偵測到反抗' : '順暢完成'}
+                    </span>
+                  </div>
+                  <div class="text-xs text-slate-500">
+                    時間：${rec.date} ｜ 峰值扭矩：<span class="font-mono font-bold">${rec.maxTorque.toFixed(2)} Nm</span> ｜
+                    偵測反抗：<span class="font-bold ${rec.resistCount > 0 ? 'text-rose-600' : 'text-emerald-600'}">${rec.resistCount} 次</span> ｜
+                    總資料點數：${rec.labels.length} 筆
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick="toggleHistoryDetail('${rec.id}')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg text-sm transition">
+                    📊 查看完整過程 (4 顆馬達)
+                  </button>
+                  ${isDoctor ? `
+                    <button onclick="deleteHistoryRecord('${rec.id}')" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-lg text-sm transition">
+                      🗑️ 刪除
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+              <div id="detail_${rec.id}" class="hidden border-t bg-slate-50 p-4 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-lg border">
+                  <div class="flex items-center gap-2">
+                    <button id="btn_play_${rec.id}" onclick="toggleHistoryPlay('${rec.id}')" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition">▶ 開始播放</button>
+                    <button onclick="resetHistoryPlay('${rec.id}')" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg text-xs transition">↺ 重置</button>
+                  </div>
+                  <div id="prog_${rec.id}" class="text-xs font-mono text-slate-600 font-semibold">進度：0 / ${rec.labels.length} 筆 (等待播放)</div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div class="bg-white p-3 rounded-lg border"><div class="text-xs font-bold text-slate-600 mb-2">動態角度過程 (°)</div><div class="h-48"><canvas id="hc_a_${rec.id}"></canvas></div></div>
+                  <div class="bg-white p-3 rounded-lg border"><div class="text-xs font-bold text-slate-600 mb-2">動態角速度過程 (°/s)</div><div class="h-48"><canvas id="hc_v_${rec.id}"></canvas></div></div>
+                  <div class="bg-white p-3 rounded-lg border"><div class="text-xs font-bold text-slate-600 mb-2">動態扭矩過程 (Nm)</div><div class="h-48"><canvas id="hc_t_${rec.id}"></canvas></div></div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      showView('viewHistory');
+    }
+
+    async function deleteHistoryRecord(recId) {
+      if (!confirm('確定要刪除這筆歷史復健紀錄嗎？刪除後無法復原。')) return;
+      const pb = historyPlaybacks[recId];
+      if (pb && pb.timer) { clearInterval(pb.timer); pb.timer = null; }
+      const res = await fetch(`/api/histories/${encodeURIComponent(recId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        await openHistoryForPatient(currentHistoryPatient);
+      }
+    }
+
+    function toggleHistoryDetail(recId) {
+      const box = document.getElementById(`detail_${recId}`);
+      const isHidden = box.classList.contains('hidden');
+      box.classList.toggle('hidden');
+      if (isHidden) {
+        if (!historyPlaybacks[recId]) {
+          const empty4 = [[],[],[],[]];
+          historyPlaybacks[recId] = {
+            timer: null, index: 0,
+            charts: [
+              buildFourMotorChart(`hc_a_${recId}`, [], empty4, '角度 (°)'),
+              buildFourMotorChart(`hc_v_${recId}`, [], empty4, '角速度 (°/s)'),
+              buildFourMotorChart(`hc_t_${recId}`, [], empty4, '扭矩 (Nm)')
+            ]
+          };
+        }
+      } else {
+        const pb = historyPlaybacks[recId];
+        if (pb && pb.timer) {
+          clearInterval(pb.timer); pb.timer = null;
+          const btn = document.getElementById(`btn_play_${recId}`);
+          if (btn) { btn.innerText = '▶ 繼續播放'; btn.className = 'px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition'; }
+        }
+      }
+    }
+
+    function toggleHistoryPlay(recId) {
+      const pb = historyPlaybacks[recId];
+      const rec = loadedHistories.find(h => h.id === recId);
+      if (!pb || !rec) return;
+      const btn = document.getElementById(`btn_play_${recId}`);
+      if (pb.timer) {
+        clearInterval(pb.timer); pb.timer = null;
+        btn.innerText = '▶ 繼續播放';
+        btn.className = 'px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition';
+        return;
+      }
+      if (pb.index >= rec.labels.length) resetHistoryPlay(recId);
+      btn.innerText = '⏸ 暫停播放';
+      btn.className = 'px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition';
+      pb.timer = setInterval(() => {
+        if (pb.index >= rec.labels.length) {
+          clearInterval(pb.timer); pb.timer = null;
+          btn.innerText = '↺ 重新播放';
+          btn.className = 'px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition';
+          return;
+        }
+        const idx = pb.index, label = rec.labels[idx];
+        pushSlidingChartPoint(pb.charts[0], label, [rec.angle[0][idx], rec.angle[1][idx], rec.angle[2][idx], rec.angle[3][idx]], 25);
+        pushSlidingChartPoint(pb.charts[1], label, [rec.vel[0][idx],   rec.vel[1][idx],   rec.vel[2][idx],   rec.vel[3][idx]],   25);
+        pushSlidingChartPoint(pb.charts[2], label, [rec.torque[0][idx],rec.torque[1][idx],rec.torque[2][idx],rec.torque[3][idx]],25);
+        pb.index++;
+        document.getElementById(`prog_${recId}`).innerText = `進度：${pb.index} / ${rec.labels.length} 筆 (時間：${label})`;
+      }, 200);
+    }
+
+    function resetHistoryPlay(recId) {
+      const pb = historyPlaybacks[recId], rec = loadedHistories.find(h => h.id === recId);
+      if (!pb || !rec) return;
+      if (pb.timer) { clearInterval(pb.timer); pb.timer = null; }
+      pb.index = 0;
+      pb.charts.forEach(c => { c.data.labels = []; for (let i = 0; i < 4; i++) c.data.datasets[i].data = []; c.update(); });
+      const btn = document.getElementById(`btn_play_${recId}`);
+      if (btn) { btn.innerText = '▶ 開始播放'; btn.className = 'px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition'; }
+      const prog = document.getElementById(`prog_${recId}`);
+      if (prog) prog.innerText = `進度：0 / ${rec.labels.length} 筆 (等待播放)`;
+    }
+
+    function buildFourMotorChart(canvasId, labels, dataArrays, yTitle) {
+      return new Chart(document.getElementById(canvasId).getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: [...labels],
+          datasets: [0, 1, 2, 3].map(i => ({ label: `M${i + 1}`, data: [...dataArrays[i]], borderColor: MOTOR_COLORS[i], borderWidth: 2, pointRadius: 0, tension: 0.25 }))
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+          scales: { y: { title: { display: true, text: yTitle, font: { size: 10 } } } }
+        }
+      });
+    }
+
+    function pushSlidingChartPoint(chart, label, values4, maxPoints) {
+      chart.data.labels.push(label);
+      for (let i = 0; i < 4; i++) chart.data.datasets[i].data.push(values4[i]);
+      if (chart.data.labels.length > maxPoints) {
+        chart.data.labels.shift();
+        for (let i = 0; i < 4; i++) chart.data.datasets[i].data.shift();
+      }
+      chart.update();
+    }
+
+    // ---------- 復健實時監控 ----------
+    let chartLiveAngle = null, chartLiveVel = null, chartLiveTorque = null;
+    let simTimer = null, simTick = 0, forceResistFrames = 0;
+    let currentSession = null, wasInDanger = false;
+
+    function onDataSourceChange() {
+      const src = document.getElementById('dataSourceSelect').value;
+      document.getElementById('btnFakeResist').classList.toggle('hidden', src !== 'sim');
+    }
+
+    async function openLiveMonitor() {
+      document.getElementById('liveModeSelect').innerHTML = REHAB_MODES.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+      const pickerWrap = document.getElementById('liveDoctorPatientPicker');
+      if (currentUser.role === 'doctor') {
+        pickerWrap.classList.remove('hidden');
+        const res = await fetch('/api/accounts');
+        const data = await res.json();
+        document.getElementById('liveTargetPatient').innerHTML = data.patients.length === 0
+          ? `<option value="">(尚無患者帳號)</option>`
+          : data.patients.map(p => `<option value="${p.username}">${p.username}</option>`).join('');
+      } else {
+        pickerWrap.classList.add('hidden');
+      }
+      onDataSourceChange();
+      showView('viewLiveMonitor');
+      initLiveCharts();
+      renderLiveMotorCards([{a:0,v:0,t:0},{a:0,v:0,t:0},{a:0,v:0,t:0},{a:0,v:0,t:0}]);
+      updateStatusBanner(0, 0);
+    }
+
+    function exitLiveMonitor() { stopSimulation(false); goHome(); }
+
+    function initLiveCharts() {
+      if (chartLiveAngle) chartLiveAngle.destroy();
+      if (chartLiveVel) chartLiveVel.destroy();
+      if (chartLiveTorque) chartLiveTorque.destroy();
+      const empty4 = [[],[],[],[]];
+      chartLiveAngle  = buildFourMotorChart('chartLiveAngle',  [], empty4, '角度 (°)');
+      chartLiveVel    = buildFourMotorChart('chartLiveVel',    [], empty4, '角速度 (°/s)');
+      chartLiveTorque = buildFourMotorChart('chartLiveTorque', [], empty4, '扭矩 (Nm)');
+    }
+
+    function renderLiveMotorCards(mList) {
+      document.getElementById('liveMotorCards').innerHTML = mList.map((m, i) => `
+        <div class="bg-white rounded-xl border p-3 shadow-sm">
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="w-2.5 h-2.5 rounded-full" style="background:${MOTOR_COLORS[i]}"></span>
+            <span class="text-xs font-bold text-slate-600">${MOTOR_NAMES[i]}</span>
+          </div>
+          <div class="text-lg font-mono font-bold text-slate-800">${m.a.toFixed(1)}°</div>
+          <div class="text-xs text-slate-500 mt-1 flex justify-between">
+            <span>速: ${m.v.toFixed(1)}°/s</span>
+            <span class="font-bold ${m.t >= 3.5 ? 'text-rose-600' : (m.t >= 1.5 ? 'text-amber-600' : 'text-emerald-600')}">
+              ${m.t.toFixed(2)} Nm
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function triggerFakeResist() {
+      if (!simTimer) return alert('請先按下「開始監控並錄製」再測試反抗！');
+      forceResistFrames = 8;
+      currentSession.resistCount++;
+    }
+
+    function toggleSimulation() {
+      if (simTimer) stopSimulation(true);
+      else startSimulation();
+    }
+
+    function startSimulation() {
+      const targetUser = currentUser.role === 'doctor' ? document.getElementById('liveTargetPatient').value : currentUser.username;
+      if (currentUser.role === 'doctor' && !targetUser) return alert('目前尚未建立任何患者帳號，請先至「帳號資料管理」新增患者！');
+
+      initLiveCharts();
+      simTick = 0; forceResistFrames = 0; wasInDanger = false;
+      const modeId = parseInt(document.getElementById('liveModeSelect').value);
+      const modeName = REHAB_MODES.find(m => m.id === modeId).name;
+
+      currentSession = {
+        id: 'hist_' + Date.now(), patientUsername: targetUser,
+        date: new Date().toLocaleString('zh-TW', { hour12: false }).slice(0, 16),
+        modeName, resistCount: 0, maxTorque: 0,
+        labels: [], angle: [[],[],[],[]], vel: [[],[],[],[]], torque: [[],[],[],[]]
+      };
+
+      const btn = document.getElementById('btnStartSim');
+      btn.innerText = '■ 停止並儲存完整過程';
+      btn.className = 'bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-lg shadow transition text-sm';
+
+      simTimer = setInterval(async () => {
+        simTick++;
+        const t = simTick * 0.2;
+        const label = `${t.toFixed(1)}s`;
+        const src = document.getElementById('dataSourceSelect').value;
+        let frame = null;
+
+        if (src === 'tcp') {
+          try {
+            const res = await fetch('/api/telemetry');
+            const data = await res.json();
+            const badge = document.getElementById('tcpConnBadge');
+            if (data.connected) {
+              badge.innerText = '● 外骨骼 TCP：已連線接收中';
+              badge.className = 'text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold';
+            } else {
+              badge.innerText = '● 外骨骼 TCP：等待連線 (Port 5001)';
+              badge.className = 'text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-semibold';
+            }
+            frame = data.motors.map(m => ({ a: m.angle, v: m.vel, t: m.torque }));
+          } catch (e) {
+            return;
+          }
+        } else {
+          const m1A = (1 - Math.cos(t * 1.6)) * 65;
+          const m1V = Math.sin(t * 1.6) * 85;
+          let m1T = 0.7 + Math.abs(Math.sin(t * 0.8)) * 1.0;
+          if (forceResistFrames > 0) { m1T = 4.1 + Math.random() * 0.5; forceResistFrames--; }
+          frame = [
+            { a: m1A, v: m1V, t: m1T },
+            { a: Math.sin(t) * 15, v: Math.cos(t) * 15, t: 0.4 + Math.abs(Math.cos(t)) * 0.3 },
+            { a: modeId === 1 ? -90 : Math.sin(t * 1.2) * 40, v: modeId === 1 ? 0 : Math.cos(t * 1.2) * 48, t: 0.3 },
+            { a: 90 - m1A * 0.4, v: -m1V * 0.4, t: 0.5 + Math.abs(Math.sin(t)) * 0.4 }
+          ];
+        }
+
+        const maxT = Math.max(...frame.map(x => x.t));
+        if (maxT > currentSession.maxTorque) currentSession.maxTorque = maxT;
+
+        if (src === 'tcp') {
+          if (maxT >= 3.5 && !wasInDanger) {
+            currentSession.resistCount++;
+            wasInDanger = true;
+          } else if (maxT < 3.0) {
+            wasInDanger = false;
+          }
+        }
+
+        currentSession.labels.push(label);
+        for (let i = 0; i < 4; i++) {
+          currentSession.angle[i].push(+frame[i].a.toFixed(1));
+          currentSession.vel[i].push(+frame[i].v.toFixed(1));
+          currentSession.torque[i].push(+frame[i].t.toFixed(2));
+        }
+
+        renderLiveMotorCards(frame);
+        updateStatusBanner(maxT, currentSession.resistCount);
+        pushSlidingChartPoint(chartLiveAngle,  label, frame.map(x => +x.a.toFixed(1)), 25);
+        pushSlidingChartPoint(chartLiveVel,    label, frame.map(x => +x.v.toFixed(1)), 25);
+        pushSlidingChartPoint(chartLiveTorque, label, frame.map(x => +x.t.toFixed(2)), 25);
+      }, 200);
+    }
+
+    async function stopSimulation(shouldSave) {
+      if (!simTimer) return;
+      clearInterval(simTimer); simTimer = null;
+      const btn = document.getElementById('btnStartSim');
+      btn.innerText = '▶ 開始監控並錄製';
+      btn.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-lg shadow transition text-sm';
+
+      if (shouldSave && currentSession && currentSession.labels.length > 0) {
+        await fetch('/api/histories', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentSession)
+        });
+        alert(`已儲存本次完整復健過程（共 ${currentSession.labels.length} 筆時間點）至共用資料庫！`);
+      }
+      currentSession = null;
+    }
+
+    function updateStatusBanner(torque, resistCount) {
+      const banner = document.getElementById('statusBanner');
+      const title = document.getElementById('statusTitle');
+      const sub = document.getElementById('statusSub');
+      const g = document.getElementById('lampGreen'), y = document.getElementById('lampYellow'), r = document.getElementById('lampRed');
+
+      document.getElementById('maxTorqueDisplay').innerText = `${torque.toFixed(2)} Nm`;
+      document.getElementById('liveResistCount').innerText = resistCount;
+      banner.classList.remove('bg-emerald-600', 'bg-amber-500', 'bg-red-600', 'blink-danger');
+      g.className = 'w-4 h-4 rounded-full bg-emerald-400/30';
+      y.className = 'w-4 h-4 rounded-full bg-amber-300/30';
+      r.className = 'w-4 h-4 rounded-full bg-red-400/30';
+
+      if (torque >= 3.5) {
+        banner.classList.add('bg-red-600', 'blink-danger');
+        r.className = 'w-4 h-4 rounded-full bg-red-400 ring-2 ring-white';
+        title.innerText = '⚠ 警告：偵測到患者主動反抗 / 扭矩過高！';
+        sub.innerText = '淨抵抗扭矩 ≥ 3.5 Nm，已記錄反抗事件並建議降速或暫停';
+      } else if (torque >= 1.5) {
+        banner.classList.add('bg-amber-500');
+        y.className = 'w-4 h-4 rounded-full bg-amber-300 ring-2 ring-white';
+        title.innerText = '▲ 注意：偵測到輕微緊繃 (請放鬆手臂)';
+        sub.innerText = '淨抵抗扭矩介於 1.5 ~ 3.5 Nm，請提醒患者深呼吸放鬆肩膀';
+      } else {
+        banner.classList.add('bg-emerald-600');
+        g.className = 'w-4 h-4 rounded-full bg-emerald-400 ring-2 ring-white';
+        title.innerText = '● 狀態正常：肌肉放鬆 (被動帶動中)';
+        sub.innerText = '淨抵抗扭矩 < 1.5 Nm，與 Unity 3D 模型同步判定中';
+      }
+    }
+
+    // ---------- 醫師：帳號資料管理 ----------
+    async function openAccountManager() {
+      await renderAccountLists();
+      document.getElementById('addPatientForm').classList.add('hidden');
+      document.getElementById('addDoctorForm').classList.add('hidden');
+      showView('viewAccountManager');
+    }
+
+    async function renderAccountLists() {
+      const res = await fetch('/api/accounts');
+      const data = await res.json();
+      document.getElementById('patientCountBadge').innerText = `${data.patients.length} 位`;
+      document.getElementById('doctorCountBadge').innerText  = `${data.doctors.length} 位`;
+
+      document.getElementById('adminPatientList').innerHTML = data.patients.map((p, idx) =>
+        buildAccountRow('patient', p.username, idx, currentUser && currentUser.role === 'patient' && currentUser.username === p.username)
+      ).join('') || '<div class="py-4 text-center text-slate-400 text-xs">尚無患者帳號</div>';
+
+      document.getElementById('adminDoctorList').innerHTML = data.doctors.map((d, idx) =>
+        buildAccountRow('doctor', d.username, idx, currentUser && currentUser.role === 'doctor' && currentUser.username === d.username)
+      ).join('') || '<div class="py-4 text-center text-slate-400 text-xs">尚無醫師帳號</div>';
+    }
+
+    function buildAccountRow(role, username, idx, isCurrent) {
+      const boxId = `editPwdBox_${role}_${idx}`, inputId = `editPwdInput_${role}_${idx}`;
+      return `
+        <div class="py-2.5 space-y-2">
+          <div class="flex justify-between items-center gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-800">${username}</span>
+              ${isCurrent ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">登入中</span>' : ''}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="toggleEditPwd('${boxId}')" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-xs font-semibold">修改密碼</button>
+              <button onclick="deleteAccount('${role}', '${username}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-semibold">刪除</button>
+            </div>
+          </div>
+          <div id="${boxId}" class="hidden flex items-center gap-2 bg-slate-50 p-2 rounded-lg border">
+            <div class="relative flex-1">
+              <input id="${inputId}" type="password" placeholder="輸入新密碼" class="w-full border rounded pl-2.5 pr-8 py-1 text-xs bg-white" />
+              <button type="button" onmousedown="showPassword('${inputId}')" onmouseup="hidePassword('${inputId}')" onmouseleave="hidePassword('${inputId}')" ontouchstart="showPassword('${inputId}')" ontouchend="hidePassword('${inputId}')" class="absolute inset-y-0 right-0 px-2 flex items-center text-slate-400 hover:text-slate-700 select-none text-xs">👁️</button>
+            </div>
+            <button onclick="saveNewPassword('${role}', '${username}', '${inputId}', '${boxId}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold">儲存</button>
+            <button onclick="toggleEditPwd('${boxId}')" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded text-xs">取消</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleEditPwd(boxId) { document.getElementById(boxId).classList.toggle('hidden'); }
+    async function saveNewPassword(role, username, inputId, boxId) {
+      const newPwd = document.getElementById(inputId).value.trim();
+      if (!newPwd) return alert('請輸入新密碼');
+      const res = await fetch('/api/accounts/password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, username, password: newPwd }) });
+      if ((await res.json()).ok) { document.getElementById(inputId).value = ''; document.getElementById(boxId).classList.add('hidden'); alert(`帳號「${username}」密碼已更新！`); }
+    }
+    function toggleAdminAddForm(role) { document.getElementById(role === 'patient' ? 'addPatientForm' : 'addDoctorForm').classList.toggle('hidden'); }
+    async function adminAddAccount(role) {
+      const u = document.getElementById(role === 'patient' ? 'newPatUser' : 'newDocUser').value.trim();
+      const p = document.getElementById(role === 'patient' ? 'newPatPass' : 'newDocPass').value.trim();
+      if (!u || !p) return alert('請填寫完整的帳號與密碼');
+      const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, username: u, password: p }) });
+      const data = await res.json();
+      if (!data.ok) return alert(data.msg);
+      document.getElementById(role === 'patient' ? 'newPatUser' : 'newDocUser').value = '';
+      document.getElementById(role === 'patient' ? 'newPatPass' : 'newDocPass').value = '';
+      document.getElementById(role === 'patient' ? 'addPatientForm' : 'addDoctorForm').classList.add('hidden');
+      renderAccountLists();
+    }
+    async function deleteAccount(role, username) {
+      if (role === 'doctor' && username === currentUser.username) return alert('無法刪除目前正在登入中的醫師帳號！');
+      if (!confirm(`確定要刪除帳號「${username}」嗎？`)) return;
+      await fetch(`/api/accounts/${role}/${encodeURIComponent(username)}`, { method: 'DELETE' });
+      renderAccountLists();
+    }
+  </script>
+</body>
+</html>
